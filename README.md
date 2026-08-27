@@ -1,53 +1,87 @@
-# Producer Song Memory
+# Stems — Producer Song Memory
 
-A memory layer that lets a music producer log every track by talking naturally to the
-agent they already use, then find any track by describing it, see what's still unfinished,
-and know exactly which duplicate files are safe to delete.
+A full-stack app that lets a music producer log every track by talking naturally, then
+find any track by describing it, see what's still unfinished, and know exactly which
+duplicate files are safe to delete.
 
-**There is no app to install and no separate UI.** The product is a prompt plus the
-[MemWal](https://www.npmjs.com/package/@mysten-incubation/memwal-mcp) MCP server, which
-gives the agent durable, wallet-backed memory that survives across sessions.
+It solves two problems at once:
 
-| File | What it is |
+- **"I can't find my song."** Describe the vibe, a sample, the BPM — get the track name
+  and the exact file path.
+- **Storage pressure from keeping every version "just in case."** The app tracks version
+  lineage and never overwrites a memory. When a new version supersedes an old one, the
+  old file lands on an **Archive** list — the only files that are actually safe to move
+  off primary storage.
+
+## Stack
+
+| Layer | Choice |
 | --- | --- |
-| `producer-song-memory-agent.md` | **The product.** The system prompt to paste into the producer's agent. |
-| `CONFIG-checklist.md` | The four values to fill into the prompt before first use. |
-| `demo-script.md` | Run sheet for the proof video. |
-| `SUBMISSION.md` | Hackathon write-up. |
+| Server | Node 24, Express, TypeScript (run with `tsx`) |
+| Storage | `node:sqlite` (built into Node — no native build step), file at `server/data/stems.db` |
+| Client | React 18 + Vite 6 + TypeScript + Tailwind v4 |
+| NL parsing | Offline heuristic parser (`server/src/parse.ts`) — no API key needed |
 
-## Setup (once, ~5 minutes)
+## Run it
 
-1. **Install MemWal MCP** in whatever agent the producer already uses:
+```bash
+npm install
+npm run seed     # loads 3 demo tracks + 1 supersession, sets config for "Tobi"
+npm run dev      # API on :3001, web on :5173  (open http://localhost:5173)
+```
 
-   ```
-   npx -y @mysten-incubation/memwal-mcp
-   ```
+Single-process / production mode:
 
-   Add it as an MCP server in the agent's config. In Claude Code:
+```bash
+npm run build    # builds the client
+npm start        # Express serves the API and the built client on :3001
+```
 
-   ```
-   claude mcp add memwal -- npx -y @mysten-incubation/memwal-mcp
-   ```
+## What's in the app
 
-2. **Log in.** Run the `memwal_login` tool and approve the wallet sign-in link within
-   5 minutes. No private key ever touches the client.
+| Tab | Does |
+| --- | --- |
+| **Log** | Type what you made in plain language → the parser fills a form → you confirm → it's in memory. Or fill the form by hand. |
+| **Find** | Describe a track; ranked matches come back with the exact location. Nothing matches → it says so, never guesses. |
+| **Unfinished** | Ideas and demos, oldest first. |
+| **Archive** | Superseded versions with their locations — safe to move or delete. |
+| **Projects** | Tracks grouped by project and status. |
+| **Setup** | The four config values: producer name, DAW, storage locations, genres/moods. |
 
-3. **Paste the prompt.** Copy everything from the `# Producer Song Memory Agent` line to
-   the end of `producer-song-memory-agent.md` into the agent's system prompt / CLAUDE.md.
+The right rail shows a live **memory feed** so you can watch entries land (and survive a
+restart).
 
-4. **Fill in CONFIG.** Replace the four placeholders — see `CONFIG-checklist.md`.
+## Data model
 
-5. **Just talk to it** while the producer works. Every time a track is mentioned, saved,
-   bounced, shelved, or re-versioned, the agent logs a memory. Recall it later with
-   `find ...`, `what's unfinished`, `what can I archive`, `versions of ...`,
-   `what's in [project]`.
+`track_versions` is the memory. Each row is one version of one track. Logging a track
+whose name already exists creates the next version, marks it canonical, and flips the
+previous versions to non-canonical with a `superseded_at` timestamp — the old rows are
+never deleted or overwritten. Every write also appends to an `events` log.
 
-## Why it exists
+## API
 
-A producer's real bottleneck isn't talent — it's forgetting what they already made and
-where it lives. This solves two problems at once:
+```
+GET  /api/config            PUT /api/config
+POST /api/parse             { text } -> suggested fields
+GET  /api/stats
+GET  /api/events?limit=
+GET  /api/tracks            POST /api/tracks   (logs a track / new version)
+GET  /api/tracks/search?q=
+GET  /api/tracks/:name/versions
+GET  /api/unfinished
+GET  /api/archivable
+GET  /api/projects          GET /api/projects/:name
+```
 
-- **"I can't find my song."** Describe the vibe, get the track name and the exact path.
-- **Storage pressure from keeping every version "just in case."** The agent tracks
-  version lineage and never overwrites, so `what can I archive` returns exactly the
-  superseded files that are safe to move off primary storage.
+## Also in this repo
+
+The original hackathon concept was a prompt layered on the MemWal MCP server (no app).
+That prompt is kept for reference:
+
+- `producer-song-memory-agent.md` — the paste-in agent prompt
+- `CONFIG-checklist.md` — its four config values
+- `SUBMISSION.md` — hackathon write-up
+- `demo-script.md` — proof-video run sheet
+
+The app implements the same memory spec — same fields, same version/supersession rules,
+same recall commands — as a running product you can click.

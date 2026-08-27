@@ -1,57 +1,56 @@
 # Proof video run sheet
 
-Goal: show that memory is written by natural conversation, survives a full session
-restart, and returns correct answers. Keep it under ~3 minutes.
+Goal: show memory is created by natural conversation, survives a restart, and returns
+correct answers with exact file locations. Keep it under ~3 minutes.
 
 ## Before recording
-- MemWal MCP installed and `memwal_login` already approved.
-- Prompt pasted, CONFIG filled with the producer's real details.
-- Use real tracks and real paths so the locations in the recall answers are verifiable.
 
-## Part 1 — Log tracks by talking (session A)
+```bash
+npm install
+npm run seed
+npm run dev        # http://localhost:5173
+```
 
-Say these naturally, one at a time, letting the agent confirm each write:
+The seed already includes Lagos Nights (v1 → v2 supersession), Cold Water (idea), Osupa.
+For a cleaner demo you can start empty instead: delete `server/data/`, run `npm run dev`,
+open **Setup**, and fill in the four config values.
 
-1. **A finished track:**
-   > "Just bounced 'Lagos Nights' — Afrobeats, 103 BPM, A minor, saved it to the External
-   > HDD under E:/Archive/2026. Call it a demo. Sampled a talking drum loop."
+## Part 1 — Log tracks by talking (Log tab)
 
-2. **A track in a project:**
-   > "New one for the EP folder — 'Cold Water', Amapiano, 112, F# minor, still just an
-   > idea, nothing saved yet."
+Paste these one at a time into the "Log a track" box, hit **Read it**, glance at the
+parsed form, hit **Save to memory**.
 
-3. **A new version of the first track:**
-   > "Did a mixed version of 'Lagos Nights' — swapped the drums, brought up the vocal.
-   > Saved to Laptop SSD, D:/Music/mixes. This is the one to use now."
+1. Finished track:
+   > just bounced 'Lagos Nights' — afrobeats, 103 bpm, A minor, saved to the external HDD. call it a demo. sampled a talking drum loop.
 
-   Confirm the agent: incremented to version 2, marked v2 `canonical: true`, and wrote a
-   separate memory marking v1 `canonical: false`.
+2. Idea, no file:
+   > new one for the Night Drive EP folder — 'Cold Water', amapiano, 112, F# minor, still just an idea, nothing saved yet
 
-## Part 2 — Kill the session
+3. New version of #1:
+   > mixed version of 'Lagos Nights' — swapped the drums, vocal up. saved to the laptop SSD. this is the one to use now.
 
-Close the agent completely. Reopen a fresh session (nothing in context).
+   Check the green confirmation: **v2**, and "Marked v1 non-canonical — that file is safe
+   to archive now." The right rail shows both events.
 
-## Part 3 — Recall live (session B)
+## Part 2 — Restart
 
-Run these and show the answers are correct against the real files:
+Stop `npm run dev` (Ctrl+C). Start it again. The SQLite file on disk is the memory —
+nothing was in RAM.
 
-- `find the afrobeats one with the talking drum`
-  → returns **Lagos Nights**, canonical version, with the D:/Music/mixes path.
+## Part 3 — Recall live
 
-- `what's unfinished`
-  → lists **Cold Water** (idea). Oldest first.
+- **Find** tab → `the afrobeats one with the talking drum`
+  → Lagos Nights, with the laptop-SSD path. Click it → version timeline, v2 canonical.
 
-- `what can I archive`
-  → returns **Lagos Nights v1** at E:/Archive/2026 — the superseded file, safe to move.
+- **Unfinished** tab → Cold Water (idea), oldest first.
 
-- `versions of Lagos Nights`
-  → v1 (demo, E:/Archive/2026, canonical: false) then v2 (mixed, D:/Music/mixes,
-  canonical: true), oldest to newest.
+- **Archive** tab → Lagos Nights **v1** at the external-HDD path, "superseded" — the one
+  file safe to move off primary storage.
 
-- `what's in the EP`
-  → **Cold Water**, status idea.
+- **Projects** tab → Night Drive EP → Cold Water under *idea*, Lagos Nights under *mixed*.
 
 ## What the video proves
-Memory was created with zero explicit "save" commands, persisted across a hard restart,
-tracked version lineage without overwriting anything, and pinpointed the exact file that
-is safe to delete.
+
+Memory was created with zero explicit "save" commands worth the name, persisted across a
+full restart, tracked version lineage without overwriting anything, and pinpointed the
+exact file that is safe to delete.
